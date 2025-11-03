@@ -73,7 +73,7 @@ double calcNLL(TH1F* h, TF1* f){
     double x=h->GetBinCenter(i);
     int n=(int)(h->GetBinContent(i));
     double mu=f->Eval(x);
-    if (mu<1e-10) mu=1e-10;    // avoid log(0) problems!
+    if (mu<1e-10) mu=1e-10;    // avoid log(0) problems if we go outside a reasonable range!
     nll -= n * TMath::Log(mu) - mu  - TMath::LnGamma(n+1);
   }
   // cout << "nll "<< nll <<endl;
@@ -90,7 +90,7 @@ double calcNLL(TH1F* h, TF1* f){
 // par: array of parameter values
 // f: the value of the objective function
 // Minuit can also pass the gradient(deriv) of the objective function wrt the
-// current parameters or flags that we can trigger special opetations (eg perform some initialization)
+// current parameters or flags that can trigger special operations (eg perform some initialization)
 
 void fcn(int& npar, double* deriv, double& f, double par[], int flag){
 
@@ -182,8 +182,11 @@ int main(int argc, char **argv) {
 			   par[i], stepSize[i], minVal[i], maxVal[i]);
   }
 
-  // here we define the pointers to pass information to Minuit's fcn
-  // not pretty, but simple
+  // here we define the pointers to pass information to Minuit's fcn to calculate the
+  // objective function
+  // note: the use of global variables is discouraged in general, but for these
+  // examples we'll let convenience and code simplicity outweigh the programming
+  // style considerations.
   hdata=hexp;     // histogram to fit
   fparam=myfunc;  // our model
 
@@ -197,7 +200,7 @@ int main(int argc, char **argv) {
   }
   // run a minos error analysis
   // this perfoms a brute force scan around the minimum of the objective function
-  // to better estimates of the errors on the fit parameters
+  // to get better estimates of the errors on the fit parameters
   // gMinuit->mnmnos();
 
   // store the fit parameters in our TF1, decorate our function
@@ -217,7 +220,7 @@ int main(int argc, char **argv) {
   // summarize the fitting results
   cout << "\n==========================\n"<<endl;
   double fmin, fedm, errdef;
-  int npari, nparx, istat;  //see https://root.cern/doc/master/classTMinuit.html 
+  int npari, nparx, istat;  // see https://root.cern/doc/master/classTMinuit.html 
   minuit.mnstat(fmin, fedm, errdef, npari, nparx, istat);
   cout << "minimum of NLL = " << fmin << endl;
   cout << "fit status = " << istat << endl;
