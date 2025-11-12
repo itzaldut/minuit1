@@ -67,17 +67,20 @@ double expPdf(double* xPtr, double par[]){
 // This is our OBJECTIVE Function
 // return NLL given a histogram and function
 
-double calcNLL(TH1F* h, TF1* f){
-  double nll=0;
-  for (int i=1; i<=h->GetNbinsX(); i++){
-    double x=h->GetBinCenter(i);
-    int n=(int)(h->GetBinContent(i));
-    double mu=f->Eval(x);
-    if (mu<1e-10) mu=1e-10;    // avoid log(0) problems if we go outside a reasonable range!
-    nll -= n * TMath::Log(mu) - mu  - TMath::LnGamma(n+1);
+double calcChi2(TH1F* h, TF1* f){
+  double chi2 = 0.0;
+  for (int i = 1; i <= h->GetNbinsX(); ++i) {
+    double x = h->GetBinCenter(i);
+    double y = h->GetBinContent(i);
+    double ey = h->GetBinError(i);
+    double yexp = f->Eval(x);
+
+    // Avoid division by zero or empty bins
+    if (ey > 0) {
+      chi2 += pow((y - yexp) / ey, 2);
+    }
   }
-  // cout << "nll "<< nll <<endl;
-  return 2*nll;   // factor of 2 so the 1 sigma error contours follow the chi^2 convention
+  return chi2;
 }
 
 
@@ -92,15 +95,23 @@ double calcNLL(TH1F* h, TF1* f){
 // Minuit can also pass the gradient(deriv) of the objective function wrt the
 // current parameters or flags that can trigger special operations (eg perform some initialization)
 
+// This is the interface used to define our objective function.  We use
+// only a subset of the input parameters below.
+// npar: number of parameters
+// par: array of parameter values
+// f: the value of the objective function
+// Minuit can also pass the gradient(deriv) of the objective function wrt the
+// current parameters or flags that can trigger special operations (eg perform some initialization
+//
+//
+
 void fcn(int& npar, double* deriv, double& f, double par[], int flag){
-
-  for (int i=0; i<npar; i++){
-    fparam->SetParameter(i,par[i]);
+  for (int i = 0; i < npar; i++) {
+    fparam->SetParameter(i, par[i]);
   }
-
-  f = calcNLL(hdata,fparam);
- 
+  f = calcChi2(hdata, fparam);
 }
+
 
 //-------------------------------------------------------------------------
 
@@ -222,7 +233,7 @@ int main(int argc, char **argv) {
   double fmin, fedm, errdef;
   int npari, nparx, istat;  // see https://root.cern/doc/master/classTMinuit.html 
   minuit.mnstat(fmin, fedm, errdef, npari, nparx, istat);
-  cout << "minimum of NLL = " << fmin << endl;
+  cout << "minimum of chi2 = " << fmin << endl;
   cout << "fit status = " << istat << endl;
   cout << "best fit parameters\n" <<endl;
   for (int i=0; i<npar; ++i){
